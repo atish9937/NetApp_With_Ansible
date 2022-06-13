@@ -13,7 +13,7 @@
   - name: Cluster Info
     na_ontap_info:
       <<: *login
-      gather_subset: net_port_info
+      gather_subset: all
     register: ontap_info
   - debug:
       msg: "{{ontap_info}}"

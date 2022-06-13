@@ -11,7 +11,7 @@
     available_ports: "{{portlist | difference(port_having_lif)}}"
   tasks:
   - include_vars: vars.yaml
-  - name: Get Port Info
+  - name: Get Port and LIF info
     na_ontap_info:
       <<: *login
       gather_subset: 
