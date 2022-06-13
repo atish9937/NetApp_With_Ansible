@@ -1,0 +1,24 @@
+---
+- hosts: localhost
+  tasks:
+  - include_vars: vars.yaml 
+  - name: Gather All Node Information
+    na_ontap_info:
+      hostname: "{{cluster}}"
+      username: "{{username}}"
+      password: "{{password}}"
+      https: true
+      validate_certs: false
+      gather_subset: cluster_node_info
+    register: ontap_info
+  - name: Add Node Names In an Empty List
+    set_fact:
+      nodelist: "{{(nodelist | default([])) + [item.value.node_name]}}"
+    with_dict:
+      "{{ontap_info.ontap_info.cluster_node_info}}"
+  - debug:
+      msg: "{{nodelist}}"
+      
+      
+          
+

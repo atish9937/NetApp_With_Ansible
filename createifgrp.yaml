@@ -1,0 +1,51 @@
+---
+- name: Create Interface Group
+  hosts: localhost
+  vars:
+    login: &login
+      username: "{{username}}"
+      password: "{{password}}"
+      hostname: "{{cluster}}"
+      https: true
+      validate_certs: false
+    available_ports: "{{portlist | difference(port_having_lif)}}"
+  tasks:
+  - include_vars: vars.yaml
+  - name: Get Port Info
+    na_ontap_info:
+      <<: *login
+      gather_subset: 
+        - net_port_info
+        - net_interface_info
+    register: ontap_info
+  - set_fact:
+      portlist: "{{(portlist | default([])) + [item.value.port]}}"
+      nodelist: "{{item.value.node}}"
+      ipspace: "{{item.value.ipspace}}"
+    when:
+      item.value.role == "data" and item.value.port_type == "physical" and "ifgrp_port" not in item.value
+    with_dict:
+      "{{ontap_info.ontap_info.net_port_info}}"
+  - set_fact:
+      port_having_lif: "{{['home_port'] | map('extract',item.value)| list}}"
+    with_dict:
+      "{{ontap_info.ontap_info.net_interface_info}}"
+  - debug:
+      msg: "{{available_ports}}"
+  - name: Create IFGRP
+    netapp.ontap.na_ontap_net_ifgrp:
+      <<: *login
+      state: present
+      # from_lag_ports: portlist
+      ports: "{{available_ports}}"
+      distribution_function: ip
+      mode: multimode_lacp
+      #name: a0a
+      node: "{{nodelist}}"
+      broadcast_domain: Default
+      ipspace: "{{ipspace}}"
+    register: ifgrpresult
+    when:
+      available_ports|length > 0|int
+  - debug:
+     msg: "{{ifgrpresult}}"

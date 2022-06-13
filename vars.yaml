@@ -1,0 +1,4 @@
+username: admin
+password: netapp123
+cluster: 192.168.15.130
+licensefile: license.txt

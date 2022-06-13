@@ -1,0 +1,35 @@
+---
+- name: Create Aggregates
+  hosts: localhost
+  vars:
+    login: &login
+      username: "{{username}}"
+      password: "{{password}}"
+      hostname: "{{cluster}}"
+      https: true
+      validate_certs: false
+  tasks:
+    - include_vars: vars.yaml
+    - name: Get Node Details
+      na_ontap_info:
+        <<: *login
+        gather_subset: cluster_node_info
+      register: ontap_info
+    - set_fact:
+        nodelist: "{{(nodelist | default([])) + [item.value.node_name]}}"
+      with_dict:
+        "{{ontap_info.ontap_info.cluster_node_info}}"
+    - name: create aggregate
+      netapp.ontap.na_ontap_aggregate:
+        state: present
+        disk_count: 7
+        #disk_type: FCAL
+        name: "{{item.replace('-','_')+ 'aggr1'}}"
+        nodes: "{{item}}"
+        raid_type: raid_dp
+        wait_for_online: true
+        <<: *login
+      loop: "{{nodelist}}"
+      register: aggrresult
+    - debug:
+        msg: "{{aggrresult.results[0].invocation.module_args.name + 'has been created'}}"

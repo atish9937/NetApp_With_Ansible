@@ -1,0 +1,33 @@
+---
+- name: Create SVM
+  hosts: localhost
+  vars:
+    login: &login
+      username: "{{username}}"
+      password: "{{password}}"
+      hostname: "{{cluster}}"
+      https: true
+      validate_certs: false
+  tasks:
+  - include_vars: vars.yaml
+  - name: Get Aggregate
+    na_ontap_info:
+      <<: *login
+      gather_subset: aggregate_info
+    register: ontap_info
+  - set_fact:
+       aggregate: "{{item.value.aggregate_name}}"
+    when:
+      item.value.aggr_space_attributes.physical_used_percent|int < 80|int and item.value.aggr_raid_attributes.ha_policy == "sfo"
+    with_dict:
+      "{{ontap_info.ontap_info.aggregate_info}}"
+  - name: Create SVM
+    netapp.ontap.na_ontap_svm:
+      <<: *login
+      state: absent
+      name: vserver2
+      #root_volume_aggregate: "{{aggregate}}"
+      allowed_protocols: ['nfs','cifs','iscsi']
+    register: svmcreation
+  - debug:
+      msg: "{{svmcreation}}"
