@@ -15,7 +15,6 @@
         <<: *login
         state: present
         license_codes: "{{ item }}"
-        #loop: ['YVUCRRRRYVHXCFABGAAAAAAAAAAA','WKQGSRRRYVHXCFABGAAAAAAAAAAA','SOHOURRRYVHXCFABGAAAAAAAAAAA']
       loop: "{{lookup('file',licensefile).splitlines()}}"
       register: ladd
     - debug:
