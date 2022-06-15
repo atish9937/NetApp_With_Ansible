@@ -1,0 +1,44 @@
+---
+- name: LIF Creation
+  hosts: localhost
+  vars:
+    login: &login
+      username: "{{username}}"
+      password: "{{password}}"
+      hostname: "{{cluster}}"
+      https: true
+      validate_certs: false
+  tasks:
+  - include_vars: vars.yaml
+  - name: Get Vserver Info
+    na_ontap_info:
+      <<: *login
+      gather_subset: vserver_info
+    register: ontap_info
+  - name: Get data vserver
+    set_fact:
+      svm: "{{(svm | default([])) + [item.value.vserver_name]}}"
+    when:
+      item.value.vserver_type == "data" and "nfs" in item.value.allowed_protocols.protocol
+    with_dict:
+      "{{ontap_info.ontap_info.vserver_info}}"
+  - debug:
+      msg: "{{svm}}"
+  - name: Create LIF
+    netapp.ontap.na_ontap_interface:
+      <<: *login
+      state: present
+      address: xx.xx.xx.xx
+      admin_status: up
+      home_port: a0a
+      interface_name: nfs_lif
+      netmask: 255.255.255.0
+      role: data
+      vserver: "{{svm[0]}}"
+    when:
+      svm|length == 1|int
+    register: lifresult
+  - debug:
+      msg: "{{lifresult}}"
+
+      #  - name: Get Vserver Info
