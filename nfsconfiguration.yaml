@@ -1,0 +1,47 @@
+---
+- name: NFS Configuration
+  hosts: localhost
+  vars:
+    login: &login
+      username: "{{username}}"
+      password: "{{password}}"
+      hostname: "{{cluster}}"
+      https: true
+      validate_certs: false
+  tasks:
+  - include_vars: vars.yaml
+  - name: Get SVM Info
+    na_ontap_info:
+      <<: *login
+      gather_subset: vserver_info
+    register: ontap_info
+  - set_fact:
+      svm: "{{ svm | default([]) + [item.value.vserver_name]}}"
+    when:
+      item.value.vserver_type == "data" and "nfs" in item.value.allowed_protocols.protocol
+    with_dict:
+      "{{ontap_info.ontap_info.vserver_info}}"
+  - name: Enable NFS
+    netapp.ontap.na_ontap_nfs:
+      <<: *login
+      state: present
+      nfsv3: enabled
+      service_state: started
+      vserver: "{{svm[0]}}"
+    register: nfssetup
+  - debug:
+      msg: "{{nfssetup}}"
+  - name: Create default rule in default export policy
+    netapp.ontap.na_ontap_export_policy_rule:
+      <<: *login
+      state: present
+      client_match: "0.0.0.0/0"
+      name: default
+      protocol: nfs
+      ro_rule: any
+      rw_rule: any
+      super_user_security: any
+      vserver: "{{svm[0]}}"
+    register: rule
+  - debug:
+      msg: "{{rule}}"
