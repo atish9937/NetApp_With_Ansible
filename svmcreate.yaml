@@ -24,7 +24,7 @@
   - name: Create SVM
     netapp.ontap.na_ontap_svm:
       <<: *login
-      state: absent
+      state: present
       name: vserver2
       #root_volume_aggregate: "{{aggregate}}"
       allowed_protocols: ['nfs','cifs','iscsi']

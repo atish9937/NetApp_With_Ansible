@@ -1,0 +1,57 @@
+---
+- name: NFS Share Creation
+  hosts: localhost
+  vars:
+    login: &login
+      username: "{{username}}"
+      password: "{{password}}"
+      hostname: "{{cluster}}"
+      https: true
+      validate_certs: false
+  tasks:
+  - include_vars: vars.yaml
+  - name: Get vserver name
+    na_ontap_info:
+      <<: *login
+      gather_subset: 
+        - vserver_nfs_info
+        - aggregate_info
+    register: ontap_info
+  - debug:
+      msg: "{{ontap_info.ontap_info.aggregate_info}}"
+  - set_fact:
+      svmname: "{{svmname | default([]) + [item.value.vserver]}}"
+    with_dict:
+      "{{ontap_info.ontap_info.vserver_nfs_info}}"
+  - set_fact:
+      aggrdict: "{{aggrdict | default({}) | combine({item.value.aggregate_name: item.value.aggr_space_attributes.percent_used_capacity|replace('%','')|int})}}"
+    when:
+      item.value.aggr_space_attributes.percent_used_capacity|int < 80|int and item.value.aggr_raid_attributes.ha_policy == "sfo"
+    with_dict:
+      "{{ontap_info.ontap_info.aggregate_info}}"
+  - set_fact:
+      aggrname: "{{aggrname | default('') + item.key}}"
+    when:
+      item.value == aggrdict.values()|min
+    with_dict:
+      "{{aggrdict}}"
+  - debug:
+      msg: 
+        - "{{svmname}}"
+        - "{{aggrdict}}"
+        - "{{aggrname}}"
+  - name: Create Volume 
+    netapp.ontap.na_ontap_volume:
+      <<: *login
+      state: present
+      size: 1
+      size_unit: gb
+      name: nfs_vol0
+      vserver: "{{svmname[0]}}"
+      aggregate_name: "{{aggrname}}"
+      volume_security_style: unix
+      export_policy: default
+      wait_for_completion: true
+    register: volcreate
+  - debug:
+      msg: "{{volcreate}}"

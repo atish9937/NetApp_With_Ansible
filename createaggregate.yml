@@ -22,9 +22,9 @@
     - name: create aggregate
       netapp.ontap.na_ontap_aggregate:
         state: present
-        disk_count: 7
+        disk_count: 5
         #disk_type: FCAL
-        name: "{{item.replace('-','_')+ 'aggr1'}}"
+        name: "{{item.replace('-','_')+ 'aggr2'}}"
         nodes: "{{item}}"
         raid_type: raid_dp
         wait_for_online: true
